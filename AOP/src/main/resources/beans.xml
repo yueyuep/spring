@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+       xmlns:p="http://www.springframework.org/schema/p"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/context
+        http://www.springframework.org/schema/context/spring-context.xsd
+        http://www.springframework.org/schema/aop
+        http://www.springframework.org/schema/aop/spring-aop.xsd">
+    <!--已经将我们的POJO类交给spring中的bean容器，下面这种是通过反射调用POJO的无参构造函数-->
+
+    <bean id="dataSource" class="org.apache.commons.dbcp2.BasicDataSource">
+        <!--为连接词配置数据源,注意这个mysql8驱动的变化-->
+        <property name="driverClassName" value="com.mysql.cj.jdbc.Driver"></property>
+        <property name="url" value="jdbc:mysql://localhost:3306/testdb?serverTimezone=GMT%2B8"></property>
+        <property name="username" value="root"></property>
+        <property name="password" value="password"></property>
+    </bean>
+    <!--注意我们的jdbcTemplate并不支持原生的java事务管理，我们jdbcTemplate中取得连接无法保证是同一个con（从连接池中获取）-->
+    <!--
+    <bean id="jdbcTemplate" class="org.springframework.jdbc.core.JdbcTemplate">
+        <property name="dataSource" ref="dataSource"></property>
+    </bean>
+
+    -->
+    <bean id="user" class="group.yuyue.Entity.User"></bean>
+    <!--采用dbutils-->
+    <bean id="queryRunner" class="org.apache.commons.dbutils.QueryRunner">
+        <!--手动给dbutil中分配线程  -->
+    </bean>
+    <!--线程连接bean-->
+    <bean id="connectionUtil" class="group.yuyue.Utils.ConnectionUtil">
+        <property name="dataSource" ref="dataSource"></property>
+    </bean>
+    <!--事务管理bean-->
+    <bean id="tranctionManager" class="group.yuyue.Utils.TranctionManager">
+        <property name="connectionUtil" ref="connectionUtil"></property>
+    </bean>
+
+
+    <bean id="impUserDAO" class="group.yuyue.Repository.ImpUserDAO_1">
+        <property name="tm" ref="tranctionManager"></property>
+        <property name="connectionUtil" ref="connectionUtil"></property>
+        <property name="queryRunner" ref="queryRunner"></property>
+    </bean>
+
+
+    <!--基于spring xml注解方式的事务管理
+     1、定义我们的通知类
+     2、定义我们的业务层，被增强的业务层代码
+    -->
+    <!--定义我们的通知类，具体的增强操作-->
+    <bean id="log" class="group.yuyue.Utils.Log"></bean>
+    <bean id="impUserDAO_3" class="group.yuyue.Repository.ImpUserDAO_3"></bean>
+    <aop:config>
+        <aop:pointcut id="impuserdao_3" expression="execution(* group.yuyue.Repository.ImpUserDAO_3.*(..))"/>
+        <aop:aspect id="Log" ref="log">
+            <!--常用的基本通知类型-->
+            <!--<aop:before method="beforePrintLog" pointcut-ref="impuserdao_2"></aop:before>
+            <aop:after method="afterPrintLog" pointcut-ref="impuserdao_2"></aop:after>
+            <aop:after-throwing method="exceptionPrintLog" pointcut-ref="impuserdao_2"></aop:after-throwing>
+            <aop:after-returning method="finalPrintLog" pointcut-ref="impuserdao_2"></aop:after-returning>-->
+            <!--环绕通知类型-->
+            <aop:around method="aroundPrintLog" pointcut-ref="impuserdao_3"></aop:around>
+        </aop:aspect>
+    </aop:config>
+    <!--错误整理5r-->
+    <!--使用创建基于类的代理对象-->
+    <aop:aspectj-autoproxy proxy-target-class="true"/>
+
+
+</beans>
